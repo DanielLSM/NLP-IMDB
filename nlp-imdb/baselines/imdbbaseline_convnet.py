@@ -22,6 +22,15 @@ axis.
 import keras
 keras.__version__
 
+import tensorflow as tf
+gpus = tf.config.experimental.list_physical_devices('GPU')
+if gpus:
+    try:
+        for gpu in gpus:
+            tf.config.experimental.set_memory_growth(gpu, True)
+    except RuntimeError as e:
+        print(e)
+
 from keras.datasets import imdb
 from keras.models import Sequential
 from keras import layers
@@ -29,32 +38,37 @@ from keras.preprocessing.sequence import pad_sequences
 from keras.callbacks import ModelCheckpoint
 
 import os
-from sklearn.metrics import roc_auc_score 
-import matplotlib.pyplot as plt 
+from sklearn.metrics import roc_auc_score
+import matplotlib.pyplot as plt
 # %matplotlib inline
-
 """#### Directory to store check point files during training"""
 
 # output directory name:
 output_dir = './'
-
 """#### Load data"""
 
-n_unique_words = 150 
+n_unique_words = 150
 print('Loading data...')
-(x_train, y_train), (x_valid, y_valid) = imdb.load_data(num_words=n_unique_words) 
+(x_train, y_train), (x_valid,
+                     y_valid) = imdb.load_data(num_words=n_unique_words)
 print(len(x_train), 'training sequences')
 print(len(x_valid), 'validation sequences')
-
 """#### Preprocess data"""
 
 max_review_length = 150
 pad_type = trunc_type = 'pre'
-x_train = pad_sequences(x_train, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
-x_valid = pad_sequences(x_valid, maxlen=max_review_length, padding=pad_type, truncating=trunc_type, value=0)
+x_train = pad_sequences(x_train,
+                        maxlen=max_review_length,
+                        padding=pad_type,
+                        truncating=trunc_type,
+                        value=0)
+x_valid = pad_sequences(x_valid,
+                        maxlen=max_review_length,
+                        padding=pad_type,
+                        truncating=trunc_type,
+                        value=0)
 print('x_train shape:', x_train.shape)
 print('x_valid shape:', x_valid.shape)
-
 """#### Design neural network architecture
 You can build a convnet by  stacking of `Conv1D` 
 and `MaxPooling1D` layers, eventually ending in either a global pooling layer or a `Flatten` layer, turning the 3D outputs into 2D outputs, 
@@ -67,22 +81,23 @@ epochs = 10
 batch_size = 128
 n_embed = 100
 model = Sequential()
-model.add(layers.Embedding(n_unique_words, n_embed, input_length=max_review_length))
+model.add(
+    layers.Embedding(n_unique_words, n_embed, input_length=max_review_length))
 model.add(layers.Conv1D(16, 5, activation='relu'))
 model.add(layers.GlobalMaxPooling1D())
 model.add(layers.Dense(1))
 model.summary()
-
 """#### Compile the model"""
 
-model.compile(optimizer='adam', loss='binary_crossentropy', metrics=['accuracy'])
-
+model.compile(optimizer='adam',
+              loss='binary_crossentropy',
+              metrics=['accuracy'])
 """#### Configure to store check points"""
 
-modelcheckpoint = ModelCheckpoint(filepath=output_dir+"/weights.{epoch:02d}.hdf5")
+modelcheckpoint = ModelCheckpoint(filepath=output_dir +
+                                  "/weights.{epoch:02d}.hdf5")
 if not os.path.exists(output_dir):
     os.makedirs(output_dir)
-
 """#### Train the model
 We store the history of the optimization so that we can plot it later, and choose the result from a certain good epoch.
 
@@ -91,8 +106,13 @@ The run time in google colab should be around 15s per epoch for the baseline mod
 After training the model is evaluated on the validation data.
 """
 
-history = model.fit(x_train, y_train, batch_size=batch_size, epochs=epochs, verbose=1, validation_data=(x_valid, y_valid), callbacks=[modelcheckpoint])
-
+history = model.fit(x_train,
+                    y_train,
+                    batch_size=batch_size,
+                    epochs=epochs,
+                    verbose=1,
+                    validation_data=(x_valid, y_valid),
+                    callbacks=[modelcheckpoint])
 """#### Display training progress"""
 
 acc = history.history['accuracy']
@@ -113,30 +133,25 @@ plt.title('Training and validation loss')
 plt.legend()
 
 plt.show()
-
 """#### Load the best model parameters
 To do this, look at the training above and pick out the epoch that you consider to be the best. You could also attempt to identify this automatically from the history. Assuming that epoch 3 had the best results, you would load::
 
     model.load_weights(output_dir+"/weights.03.hdf5") # zero-indexed
 """
 
-model.load_weights(output_dir+"/weights.07.hdf5") # zero-indexed
-
+model.load_weights(output_dir + "/weights.07.hdf5")  # zero-indexed
 """#### Calculate the area under the curve for the ROC curve to get a scalar value to express the performance of the network
 This code only runs if you ensure that the output is a probability like you would get with a sigmoid (see Jon's model)
 """
 
 y_hat = model.predict(x_valid)
-"{:0.2f}".format(roc_auc_score(y_valid, y_hat)*100.0)
-
+"{:0.2f}".format(roc_auc_score(y_valid, y_hat) * 100.0)
 """#### Visualize the output of the classifier"""
 
 plt.hist(y_hat)
 _ = plt.axvline(x=0.5, color='orange')
-
 """## 1D and 2D convnets
 
 * In the same way that 2D convnets perform well for processing visual patterns in 2D space, 1D convnets perform well for processing temporal patterns. 
 * Typically 1D convnets are structured much like their 2D equivalents from the world of computer vision: they consist of stacks of `Conv1D` layers and `MaxPooling1D` layers, eventually ending in a global pooling operation or flattening operation.
 """
-
